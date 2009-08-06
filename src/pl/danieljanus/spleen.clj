@@ -43,8 +43,11 @@
 (defn structuralize-dawg [tbl start]
   (map (fn [edge] (assoc edge :dest (when-not (zero? (:dest edge)) (structuralize-dawg tbl (:dest edge))))) (tbl start)))
 
+(defn lowercase [ch]
+  (if ch (Character/toLowerCase ch)))
+
 (defn get-edge [dawg ch]
-  (first (for [edge dawg :when (= (:attr edge) ch)] edge)))
+  (first (for [edge dawg :when (= (:attr edge) (lowercase ch))] edge)))
 
 (defn follow 
   ([edge] (:dest edge))
@@ -106,6 +109,8 @@
       [\ź 1 9]
       [\ż 1 5]
       [\_ 2 0]])
+
+(def *nonblank-tiles* (butlast (map first *tiles*)))
 
 (let [scores (apply hash-map (apply concat (map (fn [[a _ b]] [a b]) *tiles*)))]
   (defn tile-score [tile]
@@ -255,16 +260,20 @@
                               (score-word board perp-start perp (list letter) false)
                               0)))))))))
 
-(defn lowercase [ch]
-  (if ch (Character/toLowerCase ch)))
-
-(defn picks [coll]
+(defn repeated-picks [coll]
   (loop [coll coll so-far () result ()]
     (if (empty? coll)
       result
-      (recur (rest coll) 
-             (cons (first coll) so-far)
-             (cons [(first coll) (concat so-far (rest coll))] result)))))
+      (let [[ch & chs] coll
+            others (sort (concat so-far chs))]
+        (recur chs 
+               (cons ch so-far)
+               (if (= ch \_)
+                 (concat (for [ch *nonblank-tiles*] [(Character/toUpperCase ch) others]) result)
+                 (cons [ch others] result)))))))
+
+(defn picks [coll]
+  (distinct (repeated-picks coll)))
 
 (defn cast-dawg [dawg rack board position dir so-far anchor-passed?]
   (let [current (lowercase (board position))
