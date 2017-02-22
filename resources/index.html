@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>OSPS w proszku</title>
+    <script>
+      window.text2ua = function(s) {
+        var ua = new Uint8Array(s.length);
+        for (var i = 0; i < s.length; i++)
+          ua[i] = s.charCodeAt(i);
+        return ua;
+      };
+
+      window.ua2text = function(ua) {
+        var s = '';
+        for (var i = 0; i < ua.length; i++) {
+          s += String.fromCharCode(ua[i]);
+        }
+        return s;
+      };
+    </script>
+    <script src="js/app.js"></script>
+    <style>
+      html, body, #app { margin: 0; padding: 0; height: 100%; }
+      body { background: linear-gradient(135deg, #b4ddb4 0%,#83c783 17%,#52b152 33%,#008a00 67%,#005700 83%,#002400 100%); }
+      body { font: 14px/16px Helvetica, Arial; }
+      .tile { /* position: absolute; */ width: 48px; height: 48px; border: 1px solid black; text-align: center; background-color: #fae7e7; }
+      .tile .letter { vertical-align: bottom; line-height: 48px; font-size: 40px; font-weight: bold; }
+      .tile .points { font-size: 16px; padding-left: 3px; }
+      .board { position: relative; }
+      .field { position: absolute; width: 50px; height: 50px; border: 1px solid black; }
+      .normal { background: #3C8571; }
+      .f2 { background: #79B6E5; }
+      .f3 { background: #4194E0; }
+      .fD { background: #EFA284; }
+      .fT { background: #DB3920; }
+      .emo { font-size: 180px; line-height: 150px; font-weight: bold; margin-top: 50px; display: block; }
+      .osps { text-align: center; }
+      .osps input { display: block; font-weight: bold; text-align: center; font-size: 100px; margin: 50px auto 0 auto; padding: 10px; text-transform: uppercase; }
+      .ok { color: #00cc00; }
+      .osps span.wrong { font-size: 120px !important; color: #cc0000; }
+      .layout { display: flex; flex-direction: column; height: 100%; }
+      .layout header { font-size: 5vmin; height: 7vmin; line-height: 7vmin; text-align: center; background-color: rgba(255, 255, 255, 0.3); }
+      .layout header ul { margin: 0; padding: 0; }
+      .layout header ul li { display: inline-block; margin: 0 1vmin; }
+      .layout main { flex-grow: 1; }
+      .anagramy { font-size: 36px; line-height: 36px; padding: 2vmin; margin-top: 50px; width: 100%; background-color: rgba(255, 255, 255, 0.3); }
+      .anagramy ul { column-width: 250px; column-gap: 10px; column-count: 4; text-transform: uppercase; }
+      .anagramy ul li { display: block; padding: 1vmin; }
+
+   </style>
+  </head>
+  <body>
+    <div id="app">
+      Loading, please wait…
+    </div>
+  </body>
+</html>
