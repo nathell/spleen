@@ -1,64 +1,9 @@
-(ns spleen.core
-  (:use pl.danieljanus.bitfields)
-  (:import (java.io BufferedInputStream FileInputStream File)))
-
-(defn slurp-file [file]
-  "Returns a Java array of bytes making up the contents of FILE."
-  (let [f (File. file)
-        size (.length f)
-        result (make-array Byte/TYPE size)
-        stream (BufferedInputStream. (FileInputStream. f))]
-    (.read stream result)
-    result))
-
-(defstruct dawg-edge :attr :dest :term)
-
-(defn attr->char [attr]
-  (if (<= (int \a) attr (int \z))
-    (char attr)
-    ({177 \ą, 230 \ć, 234 \ę, 179 \ł, 241 \ń, 243 \ó, 182 \ś, 188 \ź, 191 \ż} attr)))
-
-(defn make-flat-dawg [#^bytes arr]
-  (let [start (with-bitfields arr 0 [x 32] x)
-        length (/ (alength arr) 4)]
-    (loop [dawg {}
-           node ()
-           state 1
-           tmpstate 1]
-      (if (= tmpstate length)
-        {:dawg dawg, :start start}
-        (with-bitfields arr (* tmpstate 4) [last 1, term 1, dest 22, attr 8]
-          (let [edge (struct dawg-edge (attr->char attr) dest (= term 1))
-                last (= last 1)]
-            (if last
-              (recur (assoc dawg state (cons edge node))
-                     ()
-                     (+ tmpstate 1)
-                     (+ tmpstate 1))
-              (recur dawg
-                     (cons edge node)
-                     state
-                     (+ tmpstate 1)))))))))
-
-(defn structuralize-dawg [tbl start]
-  (map (fn [edge] (assoc edge :dest (when-not (zero? (:dest edge)) (structuralize-dawg tbl (:dest edge))))) (tbl start)))
+(ns spleen.core)
 
 (defn lowercase [ch]
   (if ch (Character/toLowerCase ch)))
 
-(defn get-edge [dawg ch]
-  (first (for [edge dawg :when (= (:attr edge) (lowercase ch))] edge)))
-
-(defn follow 
-  ([edge] (:dest edge))
-  ([dawg ch] (:dest (get-edge dawg ch)))
-  ([dawg ch & chs] (reduce follow dawg (cons ch chs))))
-
-(defn read-dawg [x]
-  (let [flat-dawg (make-flat-dawg (slurp-file x))]
-    (structuralize-dawg (:dawg flat-dawg) (:start flat-dawg))))
-
-(def *scrabble-board-layout*
+(def scrabble-board-layout
   ["T..2...T...2..T"
    ".D...3...3...D."
    "..D...2.2...D.."
@@ -75,7 +20,7 @@
    ".D...3...3...D."
    "T..2...T...2..T"])
 
-(def *tiles*
+(def tiles
      [[\a 9 1]
       [\ą 1 5]
       [\b 2 3]
@@ -110,26 +55,26 @@
       [\ż 1 5]
       [\_ 2 0]])
 
-(def *nonblank-tiles* (butlast (map first *tiles*)))
+(def nonblank-tiles (butlast (map first tiles)))
 
-(let [scores (apply hash-map (apply concat (map (fn [[a _ b]] [a b]) *tiles*)))]
+(let [scores (apply hash-map (apply concat (map (fn [[a _ b]] [a b]) tiles)))]
   (defn tile-score [tile]
     (or (scores tile) 0)))
 
 (defn letter-bonus [bonus score tile additional]
-  (assoc score 
+  (assoc score
     :score (+ (:score score) (* bonus (tile-score tile)))
     :additional (+ (:additional score) additional)))
 
 (def no-bonus (partial letter-bonus 1))
 
 (defn word-bonus [bonus score tile additional]
-  (assoc score 
+  (assoc score
     :score (+ (:score score) (tile-score tile))
     :word-bonus (* (:word-bonus score) bonus)
     :additional (+ (:additional score) additional)))
 
-(def *scoring-functions*
+(def scoring-functions
      {\. no-bonus,
       \2 (partial letter-bonus 2),
       \3 (partial letter-bonus 3),
@@ -146,11 +91,11 @@
                                (indexed *scrabble-board-layout*))))))
 
 (defn tile-bag []
-  (apply concat (map (fn [[tile count _]] (take count (repeat tile))) *tiles*)))
+  (apply concat (map (fn [[tile count _]] (take count (repeat tile))) tiles)))
 
-(def *board-size* (count *scrabble-board-layout*))
+(def board-size (count scrabble-board-layout))
 
-(defn make-board [] 
+(defn make-board []
   {})
 
 (defn add-position [pos1 pos2]
@@ -164,25 +109,20 @@
 (def perpendicular {:up :left, :left :up, :down :right, :right :down})
 
 (defn neighbours [pos]
-  (map (partial adjacent pos) [:up :down :left :right])) 
+  (map (partial adjacent pos) [:up :down :left :right]))
 
 (defn position-legal? [[x y]]
-  (and (< -1 x *board-size*) (< -1 y *board-size*)))
+  (and (< -1 x board-size) (< -1 y board-size)))
 
 (defn position-almost-legal? [[x y]]
-  (and (<= 0 x *board-size*) (<= 0 y *board-size*)))
+  (and (<= 0 x board-size) (<= 0 y board-size)))
 
 (defn legal-positions [positions]
   (filter position-legal? positions))
 
-(defn shuffle [seq]
-  (let [gen (java.security.SecureRandom.)
-        a (make-array Byte/TYPE 20)]
-    (map first (sort-by second (map #(do (.nextBytes gen a) (list % (vec a))) seq)))))
-
 (defn anchor? [board position]
   (if (empty? board)
-    (let [middle (quot *board-size* 2)]
+    (let [middle (quot board-size 2)]
       (= position [middle middle]))
     (and (position-legal? position)
          (not (board position))
@@ -190,7 +130,7 @@
 
 (defn anchors [board]
   (if (empty? board)
-    (let [middle (quot *board-size* 2)]
+    (let [middle (quot board-size 2)]
       (list [middle middle]))
     (filter #(and (position-legal? %) (not (board %)))
             (distinct (apply concat (map neighbours (keys board)))))))
@@ -202,7 +142,7 @@
     (zero? n) position
     true (recur (dec n) board (adjacent position direction) direction)))
 
-(defn next-anchor 
+(defn next-anchor
   ([board position direction] (next-anchor 0 board position direction))
   ([n board position direction]
      (cond
@@ -212,17 +152,17 @@
 
 (def next-free (partial skip-free 0))
 
-(defn all-positions [] 
-  (for [x (range *board-size*) 
-        y (range *board-size*)]
+(defn all-positions []
+  (for [x (range board-size)
+        y (range board-size)]
     [x y]))
 
 (defn place-word [board position dir word]
   (let [[result position]
-        (reduce (fn [[board position] letter] 
-                  [(assoc board position letter) 
+        (reduce (fn [[board position] letter]
+                  [(assoc board position letter)
                    (next-free board (adjacent position dir) dir)])
-                [board (next-free board position dir)] 
+                [board (next-free board position dir)]
                 word)]
     (when-not (position-almost-legal? position)
       (throw (Error. "Incorrectly placed word")))
@@ -231,15 +171,15 @@
 (defn scrabble-bonus [word]
   (if (= (count word) 7) 50 0))
 
-(defn score-word 
-  ([board position dir word] 
+(defn score-word
+  ([board position dir word]
      (score-word board position dir word true))
-  
+
   ([board position dir word add-opposite]
-     (loop [position position, 
-            letters word, 
+     (loop [position position,
+            letters word,
             score {:score 0, :word-bonus 1, :additional (scrabble-bonus word)}]
-       (let [tile (board position)] 
+       (let [tile (board position)]
          (cond
            (and (empty? letters) (not tile))
            (+ (* (:score score) (:word-bonus score)) (:additional score))
@@ -266,14 +206,22 @@
       result
       (let [[ch & chs] coll
             others (sort (concat so-far chs))]
-        (recur chs 
+        (recur chs
                (cons ch so-far)
                (if (= ch \_)
-                 (concat (for [ch *nonblank-tiles*] [(Character/toUpperCase ch) others]) result)
+                 (concat (for [ch nonblank-tiles] [(Character/toUpperCase ch) others]) result)
                  (cons [ch others] result)))))))
 
 (defn picks [coll]
   (distinct (repeated-picks coll)))
+
+;; dummy impls to get it to compile
+
+(defn follow [dawg current]
+  dawg)
+
+(defn get-edge [dawg current]
+  dawg)
 
 (defn cast-dawg [dawg rack board position dir so-far anchor-passed?]
   (let [current (lowercase (board position))
@@ -281,35 +229,35 @@
         next (lowercase (board next-pos))]
     (cond
       (not dawg) ()
-      
+
       (and current next)
       (cast-dawg (follow dawg current) rack board next-pos dir so-far anchor-passed?)
-      
+
       (and (empty? rack) current)
       (if (and anchor-passed? (:term (get-edge dawg current)))
         (list so-far)
         ())
-         
+
       (empty? rack) ()
-      
+
       current
       (if (and anchor-passed? (:term (get-edge dawg current)))
         (cons (reverse so-far) (cast-dawg (follow dawg current) rack board next-pos dir so-far anchor-passed?))
         (cast-dawg (follow dawg current) rack board next-pos dir so-far anchor-passed?))
-      
+
       next
       (let [anchor-passed? (or anchor-passed? (anchor? board position))]
         (reduce concat (map (fn [[letter rest]]
                               (cast-dawg (follow dawg letter) rest board next-pos dir (cons letter so-far) anchor-passed?))
-                            (picks rack))))                                 
-      
+                            (picks rack))))
+
       true
       (let [anchor-passed? (or anchor-passed? (anchor? board position))]
         (reduce concat (map (fn [[letter rest]]
                               (let [so-far (cons letter so-far)]
-                                (concat 
+                                (concat
                                  (if (and anchor-passed? (:term (get-edge dawg letter)))
-                                   (list (reverse so-far)) 
+                                   (list (reverse so-far))
                                    ())
                                  (cast-dawg (follow dawg letter) rest board next-pos dir so-far anchor-passed?))))
                             (picks rack)))))))
@@ -330,8 +278,7 @@
     [position direction]))
 
 (defn all-possible-moves [board rack dict]
-  (reduce concat 
+  (reduce concat
           (for [[position direction] (cast-points board (count rack))]
             (map #(list % position direction (score-word board position direction %))
                  (cast-dawg dict rack board position direction () false)))))
-
