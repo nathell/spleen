@@ -1,4 +1,4 @@
-(ns pl.danieljanus.spleen
+(ns spleen.core
   (:use pl.danieljanus.bitfields)
   (:import (java.io BufferedInputStream FileInputStream File)))
 
