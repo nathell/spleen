@@ -82,13 +82,10 @@
       \T (partial word-bonus 3)})
 
 (def field-score
-     (apply hash-map 
-            (apply concat 
-                   (apply concat 
-                          (map (fn [[y str]] 
-                                 (map (fn [[x letter]] [[x y] (*scoring-functions* letter)]) 
-                                      (indexed str))) 
-                               (indexed *scrabble-board-layout*))))))
+  (into {}
+        (for [[y row] (map-indexed vector scrabble-board-layout)
+              [x ch] (map-indexed vector row)]
+          [[x y] (scoring-functions ch)])))
 
 (defn tile-bag []
   (apply concat (map (fn [[tile count _]] (take count (repeat tile))) tiles)))
