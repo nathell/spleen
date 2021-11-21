@@ -43,8 +43,19 @@
                                               (when (final? this) "final")
                                               (when (terminal? this) "terminal")]))))
 
+(extend-type nil
+  IArc
+  (target [_] nil)
+  (label [_] nil)
+  (final? [_] nil)
+  (terminal? [_] nil))
+
 (defn root [^FSA fsa]
   (Arc. fsa (.getRootNode fsa)))
+
+(defn ^byte latin2-byte [c]
+  (let [code ({\ą -79, \ć -26, \ę -22, \ł -77, \ń -15, \ó -13, \ś -74, \ź -68, \ż -65} c)]
+    (byte (or code (int c)))))
 
 (comment
 

@@ -1,4 +1,5 @@
-(ns spleen.core)
+(ns spleen.core
+  (:require [spleen.fsa :as fsa]))
 
 (defn lowercase [ch]
   (if ch (Character/toLowerCase ch)))
@@ -212,13 +213,11 @@
 (defn picks [coll]
   (distinct (repeated-picks coll)))
 
-;; dummy impls to get it to compile
+(defn get-edge [dawg current]
+  (get dawg (fsa/latin2-byte current)))
 
 (defn follow [dawg current]
-  dawg)
-
-(defn get-edge [dawg current]
-  dawg)
+  (some-> (get-edge dawg current) fsa/target))
 
 (defn cast-dawg [dawg rack board position dir so-far anchor-passed?]
   (let [current (lowercase (board position))
@@ -231,14 +230,14 @@
       (cast-dawg (follow dawg current) rack board next-pos dir so-far anchor-passed?)
 
       (and (empty? rack) current)
-      (if (and anchor-passed? (:term (get-edge dawg current)))
+      (if (and anchor-passed? (fsa/final? (get-edge dawg current)))
         (list so-far)
         ())
 
       (empty? rack) ()
 
       current
-      (if (and anchor-passed? (:term (get-edge dawg current)))
+      (if (and anchor-passed? (fsa/final? (get-edge dawg current)))
         (cons (reverse so-far) (cast-dawg (follow dawg current) rack board next-pos dir so-far anchor-passed?))
         (cast-dawg (follow dawg current) rack board next-pos dir so-far anchor-passed?))
 
@@ -253,7 +252,7 @@
         (reduce concat (map (fn [[letter rest]]
                               (let [so-far (cons letter so-far)]
                                 (concat
-                                 (if (and anchor-passed? (:term (get-edge dawg letter)))
+                                 (if (and anchor-passed? (fsa/final? (get-edge dawg letter)))
                                    (list (reverse so-far))
                                    ())
                                  (cast-dawg (follow dawg letter) rest board next-pos dir so-far anchor-passed?))))
@@ -279,3 +278,6 @@
           (for [[position direction] (cast-points board (count rack))]
             (map #(list % position direction (score-word board position direction %))
                  (cast-dawg dict rack board position direction () false)))))
+
+(comment
+  (all-possible-moves {} "wolanie" (fsa/root fsa)))
