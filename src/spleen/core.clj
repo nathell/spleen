@@ -214,7 +214,7 @@
   (distinct (repeated-picks coll)))
 
 (defn get-edge [dawg current]
-  (get dawg (fsa/latin2-byte current)))
+  (get dawg (fsa/latin2-byte (lowercase current))))
 
 (defn follow [dawg current]
   (some-> (get-edge dawg current) fsa/target))
