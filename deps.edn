@@ -1,3 +1,4 @@
-{:deps {org.carrot2/morfologik-fsa {:mvn/version "2.1.7"}}
+{:deps {org.carrot2/morfologik-fsa {:mvn/version "2.1.7"}
+        cljfx/cljfx {:mvn/version "1.7.17"}}
  :aliases {:build-dict {:extra-deps {org.carrot2/morfologik-tools {:mvn/version "2.1.7"}}
                         :exec-fn spleen.build/build}}}
