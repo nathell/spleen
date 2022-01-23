@@ -1,7 +1,9 @@
 (ns spleen.ui
   (:require [cljfx.api :as fx]
+            [clojure.string :as string]
             [spleen.core :as core])
   (:import [javafx.scene.canvas Canvas]
+           [javafx.scene.input MouseEvent TransferMode]
            [javafx.scene.paint Color]
            [javafx.scene.text Font FontWeight TextAlignment]))
 
@@ -16,7 +18,7 @@
    \D (rgb "EFA284")
    \T (rgb "DB3920")})
 
-(defn tile [{:keys [letter score size]
+(defn tile [{:keys [letter score size translate]
              :or {size 50}}]
   (let [typeface "Gill Sans"
         round (double (* size 3/10))
@@ -29,6 +31,11 @@
     {:fx/type :canvas
      :width size
      :height size
+     :translate-x (:x translate 0)
+     :translate-y (:y translate 0)
+     :on-mouse-pressed {:event/type ::drag-started}
+     :on-mouse-dragged {:event/type ::mouse-dragged}
+     :on-mouse-released {:event/type ::drag-stopped}
      :draw (fn [^Canvas canvas]
              (let [ctx (.getGraphicsContext2D canvas)]
                (doto ctx
@@ -67,28 +74,87 @@
                  (.strokeLine ctx (* field-size x) 0
                               (* field-size x) (* field-size (inc nx))))))}))
 
+(defn empty-rack [size]
+  (let [border-width (/ size 10)
+        upspace (* 2 border-width)
+        height (+ size upspace border-width)]
+    {:fx/type :canvas
+     :width (+ (* size 8) (* border-width 2))
+     :height height
+     :draw (fn [^Canvas canvas]
+             (let [ctx (.getGraphicsContext2D canvas)]
+               (doto ctx
+                 (.setFill (rgb "122721") #_(field-colors \.))
+                 (.fillRect 0 0 border-width height)
+                 (.fillRect border-width (+ size upspace) (+ border-width (* 8 size)) height)
+                 (.fillRect (+ border-width (* 8 size)) 0
+                            (+ (* 2 border-width (* 8 size))) height)
+                 (.setFill (field-colors \.))
+                 (.fillRect border-width 0
+                            (* 8 size) (+ upspace size)))))}))
+
+(defn atile [state letter]
+  (tile {:letter (string/upper-case (str letter)),
+         :translate (:dragging state),
+         :score (->> core/tiles
+                     (filter #(= (first %) letter))
+                     first last)}))
+
+(defn atiles [str]
+  (mapv atile str))
+
+(defn rack [state size]
+  {:fx/type :pane
+   :children [(empty-rack size)
+              {:fx/type :pane
+               :layout-x 5
+               :layout-y 10
+               :children (mapv (partial atile state) "ż")}]})
+
 (defn root [{state :state}]
   {:fx/type :stage
    :showing true
    :title "Spleen"
    :width 750
-   :height 750
+   :height 1000
    :scene {:fx/type :scene
-           :root {:fx/type :group
+           :root {:fx/type :v-box
                   ;; :alignment :center
                   :children [(board 50)
-                             {:fx/type :h-box
-                              :alignment :center
-                              :children [(tile {:letter "H", :score 4})
-                                         (tile {:letter "E", :score 1})
-                                         (tile {:letter "L", :score 1})
-                                         (tile {:letter "L", :score 1})
-                                         (tile {:letter "O", :score 2})]}]}}})
+                             (rack state 50)]}}})
+
+(defn letters []
+  {:fx/type :h-box
+   :alignment :center
+   :children [(tile {:letter "H", :score 4})
+              (tile {:letter "E", :score 1})
+              (tile {:letter "L", :score 1})
+              (tile {:letter "L", :score 1})
+              (tile {:letter "O", :score 2})]})
 
 (def *state
-  (atom {}))
+  (atom {:dragging {:x 0, :y 0}}))
 
 (defmulti event-handler :event/type)
+
+(def delta (atom nil))
+
+(defmethod event-handler ::mouse-dragged [e]
+  (let [fx-event ^MouseEvent (:fx/event e)]
+    (swap! *state assoc :dragging
+           (merge-with +
+                       @delta
+                       {:x (.getSceneX fx-event),
+                        :y (.getSceneY fx-event)}))))
+
+(defmethod event-handler ::drag-started [e]
+  (let [fx-event ^MouseEvent (:fx/event e)
+        source (.getSource fx-event)]
+    (reset! delta {:x (- (.getLayoutX source) (.getSceneX fx-event))
+                   :y (- (.getLayoutY source) (.getSceneY fx-event))})))
+
+(defmethod event-handler ::drag-stopped [e]
+  (swap! *state assoc :dragging {:x 0, :y 0}))
 
 (def renderer
   (fx/create-renderer
