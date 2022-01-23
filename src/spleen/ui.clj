@@ -67,7 +67,7 @@
                  (.strokeLine ctx (* field-size x) 0
                               (* field-size x) (* field-size (inc nx))))))}))
 
-(defn root []
+(defn root [{state :state}]
   {:fx/type :stage
    :showing true
    :title "Spleen"
@@ -79,9 +79,22 @@
                   :children [(board 50)
                              {:fx/type :h-box
                               :alignment :center
-                              :children [(tile {:letter "D", :score 2})
-                                         (tile {:letter "U", :score 3})
-                                         (tile {:letter "P", :score 2})
-                                         (tile {:letter "A", :score 1})]}]}}})
+                              :children [(tile {:letter "H", :score 4})
+                                         (tile {:letter "E", :score 1})
+                                         (tile {:letter "L", :score 1})
+                                         (tile {:letter "L", :score 1})
+                                         (tile {:letter "O", :score 2})]}]}}})
 
-#_(fx/on-fx-thread (fx/create-component (root)))
+(def *state
+  (atom {}))
+
+(defmulti event-handler :event/type)
+
+(def renderer
+  (fx/create-renderer
+    :middleware (fx/wrap-map-desc (fn [state]
+                                    {:fx/type root
+                                     :state state}))
+    :opts {:fx.opt/map-event-handler event-handler}))
+
+(fx/mount-renderer *state renderer)
