@@ -35,7 +35,7 @@
      :height size
      :translate-x (:x translate 0)
      :translate-y (:y translate 0)
-     :on-mouse-pressed {:event/type ::drag-started}
+     :on-mouse-pressed {:event/type ::drag-started, :id id}
      :on-mouse-dragged {:event/type ::mouse-dragged}
      :on-mouse-released {:event/type ::drag-stopped}
      :draw (fn [^Canvas canvas]
@@ -95,9 +95,11 @@
                  (.fillRect border-width 0
                             (* 8 size) (+ upspace size)))))}))
 
-(defn atile [state letter]
-  (tile {:letter (string/upper-case (str letter)),
-         :translate (:dragging state),
+(defn atile [state id letter]
+  (tile {:letter (string/upper-case (str letter))
+         :translate (when (= id (:dragged-id state))
+                      (:dragging state))
+         :id id
          :score (->> core/tiles
                      (filter #(= (first %) letter))
                      first last)}))
@@ -108,10 +110,12 @@
 (defn rack [state size]
   {:fx/type :pane
    :children [(empty-rack size)
-              {:fx/type :pane
+              {:fx/type :h-box
                :layout-x 5
                :layout-y 10
-               :children (mapv (partial atile state) "ż")}]})
+               :children (map-indexed (fn [i letter]
+                                        (atile state i letter))
+                                      "inercja")}]})
 
 (defn root [{state :state}]
   {:fx/type :stage
@@ -152,11 +156,12 @@
 (defmethod event-handler ::drag-started [e]
   (let [fx-event ^MouseEvent (:fx/event e)
         source (.getSource fx-event)]
-    (reset! delta {:x (- (.getLayoutX source) (.getSceneX fx-event))
-                   :y (- (.getLayoutY source) (.getSceneY fx-event))})))
+    (swap! *state assoc :dragged-id (:id e))
+    (reset! delta {:x (- (.getSceneX fx-event))
+                   :y (- (.getSceneY fx-event))})))
 
 (defmethod event-handler ::drag-stopped [e]
-  (swap! *state assoc :dragging {:x 0, :y 0}))
+  (swap! *state assoc :dragging {:x 0, :y 0} :dragged-id nil))
 
 (def renderer
   (fx/create-renderer
