@@ -18,8 +18,10 @@
    \D (rgb "EFA284")
    \T (rgb "DB3920")})
 
-(defn tile [{:keys [letter score size translate]
-             :or {size 50}}]
+(def tile-size 35)
+
+(defn tile [{:keys [id letter score size translate]
+             :or {size tile-size}}]
   (let [typeface "Gill Sans"
         round (double (* size 3/10))
         letter-size (double (* size 72/100))
@@ -115,13 +117,13 @@
   {:fx/type :stage
    :showing true
    :title "Spleen"
-   :width 750
-   :height 1000
+   :width (* tile-size 15)
+   :height (+ 40 (* tile-size 16))
    :scene {:fx/type :scene
            :root {:fx/type :v-box
                   ;; :alignment :center
-                  :children [(board 50)
-                             (rack state 50)]}}})
+                  :children [(board tile-size)
+                             (rack state tile-size)]}}})
 
 (defn letters []
   {:fx/type :h-box
